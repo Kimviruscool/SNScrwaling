@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SNS 요약 보고서 대시보드</title>
+    <link rel="stylesheet" href="/static/index.css">
+    <script src="/static/index.js" defer></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="top-nav glass">
+            <div class="nav-logo">
+                <span class="logo-icon"></span>
+                <span class="logo-text">{{ app_logo }}</span>
+            </div>
+            <nav class="nav-links">
+                <a href="#" class="active">Home</a>
+                <a href="#">Categories</a>
+                <a href="#">Database</a>
+                <a href="#">Settings</a>
+            </nav>
+            <div class="nav-actions">
+                <div class="search-bar glass">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" placeholder="Enter your search request...">
+                </div>
+                <button class="action-btn settings-btn">⚙️</button>
+                <button class="action-btn notify-btn">🔔</button>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <section class="left-column">
+                <article class="glass-panel main-chart">
+                    <div class="panel-header">
+                        <h2>Overall Report Trends</h2>
+                        <select class="time-select glass">
+                            <option>Monthly</option>
+                            <option>Weekly</option>
+                        </select>
+                    </div>
+                    <div class="chart-area">
+                        <div class="chart-bars">
+                            <div class="bar-col"><div class="bar bar-green" style="height: 60%"></div><span class="label">S</span></div>
+                            <div class="bar-col"><div class="bar bar-purple" style="height: 40%"></div><span class="label">M</span></div>
+                            <div class="bar-col active"><div class="bar bar-green" style="height: 80%"><span class="glass-dot"></span></div><span class="label">T</span></div>
+                            <div class="bar-col"><div class="bar bar-green" style="height: 55%"></div><span class="label">W</span></div>
+                            <div class="bar-col"><div class="bar bar-purple" style="height: 70%"></div><span class="label">T</span></div>
+                            <div class="bar-col"><div class="bar bar-green" style="height: 50%"></div><span class="label">F</span></div>
+                            <div class="bar-col"><div class="bar bar-purple" style="height: 65%"></div><span class="label">S</span></div>
+                        </div>
+                    </div>
+                    <div class="chart-stats">
+                        <div class="stat-main">+20%</div>
+                        <div class="stat-desc">This week's reports is higher than last week's</div>
+                    </div>
+                </article>
+
+                <div class="bottom-cards">
+                    <article class="small-panel glass request-input">
+                        <h3>New Summary Request</h3>
+                        <form class="request-form" id="generate-form">
+                            <select class="form-input glass" id="category-select">
+                                <option>Twitter</option>
+                                <option>Instagram</option>
+                                <option>Threads</option>
+                            </select>
+                            <input type="url" class="form-input glass" placeholder="Enter Post URL..." id="url-input" required>
+                            <button type="submit" class="submit-btn glass-btn">Generate Report</button>
+                        </form>
+                    </article>
+                </div>
+            </section>
+
+            <section class="right-column">
+                <article class="glass-panel recent-reports">
+                    <div class="panel-header">
+                        <h2>Recently Generated Reports</h2>
+                        <a href="#" class="see-all">See all Project</a>
+                    </div>
+
+                    <div class="reports-list">
+                        {% for report in reports %}
+                        <div class="report-card glass">
+                            <div class="card-logo">
+                                </div>
+                            <div class="card-content">
+                                <p class="card-title">{{ report.title }} <span class="monochrome-tag">Monochrome</span></p>
+                                <p class="card-url">{{ report.url }}</p>
+                            </div>
+                            <div class="card-status Completed">{{ report.status }}</div>
+                            <div class="card-meta">
+                                <p class="card-time">{{ report.time }}</p>
+                                <div class="card-tags">
+                                    {% for tag in report.tags %}
+                                    <span class="tag">{{ tag }}</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <button class="expand-btn">⌄</button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </article>
+            </section>
+        </main>
+    </div>
+</body>
+</html>
