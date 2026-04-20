@@ -10,7 +10,6 @@
 <body>
 <div class="dashboard-container">
 
-    <!-- 상단 네비게이션 -->
     <header class="top-nav glass">
         <div class="nav-logo">
             <span class="logo-icon">▶</span>
@@ -23,12 +22,10 @@
         <div class="nav-badge"><span id="total-count">0</span>건 분석 완료</div>
     </header>
 
-    <!-- 메인 2단 레이아웃 -->
     <main class="main-content">
 
-        <!-- ── 왼쪽: 입력 + 이력 ── -->
+        <!-- ── 왼쪽 ── -->
         <section class="left-column">
-
             <article class="glass-panel input-panel">
                 <div class="panel-header">
                     <h2>영상 분석</h2>
@@ -60,32 +57,27 @@
                     <p class="empty-msg">아직 분석 이력이 없습니다.</p>
                 </div>
             </article>
-
         </section>
 
-        <!-- ── 오른쪽: 결과 ── -->
+        <!-- ── 오른쪽 ── -->
         <section class="right-column">
-            <article class="glass-panel result-panel" id="result-panel">
+            <article class="glass-panel result-panel">
 
-                <!-- 초기 안내 -->
                 <div id="result-empty" class="state-box">
                     <div class="state-icon">▶</div>
                     <p>YouTube URL을 입력하고<br>분석 시작 버튼을 누르세요.</p>
                 </div>
 
-                <!-- 로딩 -->
                 <div id="result-loading" class="state-box hidden">
                     <div class="spinner"></div>
-                    <p>자막 수집 및 분석 중...</p>
+                    <p>자막 수집 및 AI 분석 중...</p>
                 </div>
 
-                <!-- 에러 -->
                 <div id="result-error" class="state-box hidden">
                     <div class="state-icon error">⚠</div>
                     <p id="error-msg"></p>
                 </div>
 
-                <!-- 결과 본문 -->
                 <div id="result-content" class="hidden">
 
                     <!-- 영상 헤더 -->
@@ -97,7 +89,7 @@
                         </div>
                     </div>
 
-                    <!-- 통계 카드 3개 -->
+                    <!-- 통계 카드 -->
                     <div class="stats-row">
                         <div class="stat-card">
                             <div class="stat-value" id="stat-words">-</div>
@@ -113,10 +105,10 @@
                         </div>
                     </div>
 
-                    <!-- 탭 전환 -->
+                    <!-- 탭 -->
                     <div class="tab-bar">
                         <button class="tab-btn active" data-tab="keywords">🔑 핵심 키워드</button>
-                        <button class="tab-btn" data-tab="summary">📋 핵심 요약</button>
+                        <button class="tab-btn" data-tab="summary">✨ AI 핵심 분석</button>
                         <button class="tab-btn" data-tab="transcript">📝 자막 원문</button>
                     </div>
 
@@ -125,9 +117,23 @@
                         <div id="keyword-chart" class="keyword-chart"></div>
                     </div>
 
-                    <!-- 탭: 핵심 요약 -->
+                    <!-- 탭: AI 핵심 분석 -->
                     <div id="tab-summary" class="tab-content hidden">
-                        <ul id="summary-list" class="summary-list"></ul>
+
+                        <!-- 한 줄 요약 -->
+                        <div class="one-line-box">
+                            <span class="one-line-label">💡 한 줄 요약</span>
+                            <p id="gemini-oneline"></p>
+                        </div>
+
+                        <!-- 핵심 포인트 -->
+                        <div class="section-title">핵심 포인트</div>
+                        <ul id="gemini-points" class="summary-list"></ul>
+
+                        <!-- 주제어 태그 -->
+                        <div class="section-title">주제어</div>
+                        <div id="gemini-topics" class="topic-tags"></div>
+
                     </div>
 
                     <!-- 탭: 자막 원문 -->

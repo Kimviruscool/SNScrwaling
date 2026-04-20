@@ -10,11 +10,13 @@ const btnText     = document.getElementById('btn-text');
 const historyList = document.getElementById('history-list');
 const totalCount  = document.getElementById('total-count');
 
-const resultEmpty   = document.getElementById('result-empty');
-const resultLoading = document.getElementById('result-loading');
-const resultError   = document.getElementById('result-error');
-const resultContent = document.getElementById('result-content');
-const errorMsg      = document.getElementById('error-msg');
+const panels = {
+    empty:   document.getElementById('result-empty'),
+    loading: document.getElementById('result-loading'),
+    error:   document.getElementById('result-error'),
+    content: document.getElementById('result-content'),
+};
+const errorMsg = document.getElementById('error-msg');
 
 let analysisHistory = [];
 
@@ -54,7 +56,6 @@ form.addEventListener('submit', async (e) => {
             body: JSON.stringify({ url, top_n }),
         });
         const data = await res.json();
-
         if (!res.ok) throw new Error(data.detail || '분석 실패');
 
         renderResult(data, url);
@@ -62,7 +63,8 @@ form.addEventListener('submit', async (e) => {
         urlInput.value = '';
 
     } catch (err) {
-        showError(err.message);
+        showPanel('error');
+        errorMsg.textContent = err.message;
     } finally {
         setLoading(false);
     }
@@ -70,7 +72,7 @@ form.addEventListener('submit', async (e) => {
 
 // ── 결과 렌더링 ──
 function renderResult(data, url) {
-    // 썸네일 + 제목 + 링크
+    // 영상 헤더
     document.getElementById('video-thumb').innerHTML =
         `<img src="https://img.youtube.com/vi/${data.video_id}/mqdefault.jpg" alt="썸네일">`;
     document.getElementById('result-title').textContent = data.title;
@@ -83,12 +85,12 @@ function renderResult(data, url) {
     document.getElementById('stat-sentences').textContent = data.stats.sentence_count.toLocaleString();
     document.getElementById('stat-readtime').textContent  = data.stats.read_time_min + '분';
 
-    // 각 탭 내용 렌더링
+    // 탭 내용
     renderKeywordChart(data.keywords);
-    renderSummary(data.summary);
+    renderGemini(data.gemini);
     document.getElementById('transcript-preview').textContent = data.transcript_preview;
 
-    // 키워드 탭을 기본 활성화
+    // 키워드 탭 기본 활성화
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
     document.querySelector('[data-tab="keywords"]').classList.add('active');
@@ -119,7 +121,6 @@ function renderKeywordChart(keywords) {
         chart.appendChild(row);
     });
 
-    // 바 애니메이션
     requestAnimationFrame(() => {
         chart.querySelectorAll('.kw-bar-fill').forEach(bar => {
             bar.style.width = bar.dataset.target;
@@ -127,21 +128,36 @@ function renderKeywordChart(keywords) {
     });
 }
 
-function renderSummary(sentences) {
-    const list = document.getElementById('summary-list');
-    list.innerHTML = '';
+function renderGemini(gemini) {
+    // 한 줄 요약
+    document.getElementById('gemini-oneline').textContent =
+        gemini.one_line || '요약 결과가 없습니다.';
 
-    if (!sentences || sentences.length === 0) {
-        list.innerHTML = '<p class="empty-msg">핵심 문장을 추출하지 못했습니다.</p>';
-        return;
+    // 핵심 포인트
+    const pointsList = document.getElementById('gemini-points');
+    pointsList.innerHTML = '';
+    if (gemini.points && gemini.points.length > 0) {
+        gemini.points.forEach((point, i) => {
+            const li = document.createElement('li');
+            li.className = 'summary-item';
+            li.innerHTML = `<span class="summary-num">${i + 1}</span><span>${point}</span>`;
+            pointsList.appendChild(li);
+        });
+    } else {
+        pointsList.innerHTML = '<p class="empty-msg">포인트를 추출하지 못했습니다.</p>';
     }
 
-    sentences.forEach((sent, i) => {
-        const li = document.createElement('li');
-        li.className = 'summary-item';
-        li.innerHTML = `<span class="summary-num">${i + 1}</span><span>${sent}</span>`;
-        list.appendChild(li);
-    });
+    // 주제어 태그
+    const topicsEl = document.getElementById('gemini-topics');
+    topicsEl.innerHTML = '';
+    if (gemini.topics && gemini.topics.length > 0) {
+        gemini.topics.forEach(topic => {
+            const span = document.createElement('span');
+            span.className = 'topic-tag';
+            span.textContent = topic;
+            topicsEl.appendChild(span);
+        });
+    }
 }
 
 // ── 분석 이력 ──
@@ -181,15 +197,11 @@ document.getElementById('clear-btn').addEventListener('click', () => {
     showPanel('empty');
 });
 
-// ── 패널 / 버튼 상태 ──
-const panels = { empty: resultEmpty, loading: resultLoading, error: resultError, content: resultContent };
-
+// ── 유틸 ──
 function showPanel(name) {
     Object.values(panels).forEach(p => p.classList.add('hidden'));
     panels[name].classList.remove('hidden');
 }
-
-function showError(msg) { errorMsg.textContent = msg; showPanel('error'); }
 
 function setLoading(on) {
     submitBtn.disabled = on;

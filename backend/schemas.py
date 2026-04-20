@@ -21,10 +21,16 @@ class ContentStats(BaseModel):
     read_time_min: int
 
 
+class GeminiAnalysis(BaseModel):
+    one_line: str        # 한 줄 요약
+    points: list[str]    # 핵심 포인트 목록
+    topics: list[str]    # 주제어 태그
+
+
 class AnalysisResponse(BaseModel):
     title: str
     video_id: str
     keywords: list[KeywordItem]
-    summary: list[str]
+    gemini: GeminiAnalysis
     stats: ContentStats
     transcript_preview: str
