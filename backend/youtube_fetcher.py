@@ -21,12 +21,37 @@ def extract_video_id(url: str) -> str:
 
 
 def fetch_transcript(video_id: str) -> str:
-    """자막 텍스트 가져오기 (한국어 → 영어 순서로 시도)"""
+    """
+    자막 텍스트 가져오기 (youtube-transcript-api 1.2.x 대응).
+    api.fetch()  → 언어 지정 자막 가져오기
+    api.list()   → 사용 가능한 자막 목록
+    실패 시 ValueError 발생 → api.py 에서 400으로 처리
+    """
+    api = YouTubeTranscriptApi()
+
+    def _join(segments) -> str:
+        return " ".join(
+            seg.text if hasattr(seg, "text") else seg["text"]
+            for seg in segments
+        )
+
+    # 1차: 한국어/영어 지정
     try:
-        segments = YouTubeTranscriptApi.get_transcript(video_id, languages=["ko", "en"])
-        return " ".join(seg["text"] for seg in segments)
+        return _join(api.fetch(video_id, languages=["ko", "en"]))
     except Exception:
-        return ""
+        pass
+
+    # 2차: 사용 가능한 모든 자막 순회
+    try:
+        for transcript in api.list(video_id):
+            try:
+                return _join(api.fetch(video_id, languages=[transcript.language_code]))
+            except Exception:
+                continue
+    except Exception as e:
+        raise ValueError(f"자막 수집 실패: {e}")
+
+    raise ValueError("사용 가능한 자막을 찾지 못했습니다. 자막이 없거나 비활성화된 영상입니다.")
 
 
 async def fetch_metadata(video_id: str) -> dict:

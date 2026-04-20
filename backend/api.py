@@ -19,12 +19,13 @@ async def analyze_youtube(req: YoutubeRequest):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    # 2. 메타데이터(제목) + 자막 병렬 수집
+    # 2. 메타데이터(제목) + 자막 수집
     metadata = await fetch_metadata(video_id)
-    transcript = fetch_transcript(video_id)
 
-    if not transcript:
-        raise HTTPException(status_code=400, detail="자막을 가져올 수 없습니다. 자막이 없는 영상일 수 있습니다.")
+    try:
+        transcript = fetch_transcript(video_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     # 3. 전처리 → 키워드 추출
     words = preprocess(transcript)
