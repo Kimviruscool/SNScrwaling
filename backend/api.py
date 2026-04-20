@@ -3,10 +3,11 @@
 
 from fastapi import APIRouter, HTTPException
 
-from backend.schemas import YoutubeRequest, AnalysisResponse
+from backend.schemas import YoutubeRequest, AnalysisResponse, ContentStats
 from backend.youtube_fetcher import extract_video_id, fetch_transcript, fetch_metadata
 from backend.text_processor import preprocess
 from backend.keyword_extractor import extract_keywords
+from backend.summarizer import extract_summary, get_stats
 
 router = APIRouter()
 
@@ -19,21 +20,28 @@ async def analyze_youtube(req: YoutubeRequest):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    # 2. 메타데이터(제목) + 자막 수집
+    # 2. 메타데이터 + 자막 수집
     metadata = await fetch_metadata(video_id)
-
     try:
         transcript = fetch_transcript(video_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    # 3. 전처리 → 키워드 추출
+    # 3. 전처리
     words = preprocess(transcript)
+
+    # 4. 키워드 추출
     keywords = extract_keywords(words, req.top_n)
+
+    # 5. 핵심 요약 + 통계
+    summary = extract_summary(transcript, words, top_n=5)
+    raw_stats = get_stats(transcript, words)
 
     return AnalysisResponse(
         title=metadata["title"],
         video_id=video_id,
         keywords=keywords,
-        transcript_preview=transcript[:200] + "...",
+        summary=summary,
+        stats=ContentStats(**raw_stats),
+        transcript_preview=transcript[:300] + "...",
     )

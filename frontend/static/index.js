@@ -1,59 +1,61 @@
 // frontend/static/index.js
 
-const form       = document.getElementById('analyze-form');
-const urlInput   = document.getElementById('url-input');
-const topnInput  = document.getElementById('topn-input');
+// ── 요소 참조 ──
+const form        = document.getElementById('analyze-form');
+const urlInput    = document.getElementById('url-input');
+const topnInput   = document.getElementById('topn-input');
 const topnDisplay = document.getElementById('topn-display');
-const submitBtn  = document.getElementById('submit-btn');
-const btnText    = document.getElementById('btn-text');
+const submitBtn   = document.getElementById('submit-btn');
+const btnText     = document.getElementById('btn-text');
 const historyList = document.getElementById('history-list');
 const totalCount  = document.getElementById('total-count');
 
-// 결과 패널 영역들
 const resultEmpty   = document.getElementById('result-empty');
 const resultLoading = document.getElementById('result-loading');
 const resultError   = document.getElementById('result-error');
 const resultContent = document.getElementById('result-content');
 const errorMsg      = document.getElementById('error-msg');
 
-// 인메모리 이력 저장소
-let history = [];
+let analysisHistory = [];
 
-// ── 슬라이더 숫자 연동 ──
+// ── 슬라이더 ──
 topnInput.addEventListener('input', () => {
-    const v = topnInput.value;
+    const v = Number(topnInput.value);
     topnDisplay.textContent = v;
-    // 슬라이더 채워진 비율 색상 업데이트
-    const pct = ((v - 5) / (30 - 5)) * 100;
+    const pct = ((v - 5) / 25) * 100;
     topnInput.style.background =
-        `linear-gradient(to right, #e11d48 0%, #e11d48 ${pct}%, #e2e8f0 ${pct}%)`;
+        `linear-gradient(to right,#e11d48 ${pct}%,#e2e8f0 ${pct}%)`;
+});
+
+// ── 탭 전환 ──
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.remove('hidden');
+    });
 });
 
 // ── 폼 제출 ──
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
-
     const url   = urlInput.value.trim();
     const top_n = parseInt(topnInput.value, 10);
-
     if (!url) return;
 
     setLoading(true);
     showPanel('loading');
 
     try {
-        const res = await fetch('/api/analyze', {
+        const res  = await fetch('/api/analyze', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url, top_n }),
         });
-
         const data = await res.json();
 
-        if (!res.ok) {
-            // FastAPI HTTPException → data.detail
-            throw new Error(data.detail || '분석에 실패했습니다.');
-        }
+        if (!res.ok) throw new Error(data.detail || '분석 실패');
 
         renderResult(data, url);
         addHistory(data, url);
@@ -68,21 +70,29 @@ form.addEventListener('submit', async (e) => {
 
 // ── 결과 렌더링 ──
 function renderResult(data, url) {
-    // 썸네일
-    const thumb = document.getElementById('video-thumb');
-    thumb.innerHTML = `<img src="https://img.youtube.com/vi/${data.video_id}/mqdefault.jpg" alt="썸네일">`;
-
+    // 썸네일 + 제목 + 링크
+    document.getElementById('video-thumb').innerHTML =
+        `<img src="https://img.youtube.com/vi/${data.video_id}/mqdefault.jpg" alt="썸네일">`;
     document.getElementById('result-title').textContent = data.title;
-
     const link = document.getElementById('result-link');
     link.href = url;
-    link.textContent = url.length > 50 ? url.slice(0, 50) + '...' : url;
+    link.textContent = url.length > 55 ? url.slice(0, 55) + '...' : url;
 
-    // 키워드 바 차트
+    // 통계
+    document.getElementById('stat-words').textContent     = data.stats.word_count.toLocaleString();
+    document.getElementById('stat-sentences').textContent = data.stats.sentence_count.toLocaleString();
+    document.getElementById('stat-readtime').textContent  = data.stats.read_time_min + '분';
+
+    // 각 탭 내용 렌더링
     renderKeywordChart(data.keywords);
-
-    // 자막 미리보기
+    renderSummary(data.summary);
     document.getElementById('transcript-preview').textContent = data.transcript_preview;
+
+    // 키워드 탭을 기본 활성화
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+    document.querySelector('[data-tab="keywords"]').classList.add('active');
+    document.getElementById('tab-keywords').classList.remove('hidden');
 
     showPanel('content');
 }
@@ -90,30 +100,26 @@ function renderResult(data, url) {
 function renderKeywordChart(keywords) {
     const chart = document.getElementById('keyword-chart');
     chart.innerHTML = '';
-
     const maxScore = keywords[0]?.score || 1;
 
     keywords.forEach((kw, i) => {
-        const pct = ((kw.score / maxScore) * 100).toFixed(1);
-
-        // 색상: 상위 3개는 빨강, 나머지는 보라
+        const pct   = ((kw.score / maxScore) * 100).toFixed(1);
         const color = i < 3
-            ? 'linear-gradient(90deg, #e11d48, #f43f5e)'
-            : 'linear-gradient(90deg, #a78bfa, #818cf8)';
+            ? 'linear-gradient(90deg,#e11d48,#f43f5e)'
+            : 'linear-gradient(90deg,#a78bfa,#818cf8)';
 
         const row = document.createElement('div');
         row.className = 'kw-row';
         row.innerHTML = `
             <span class="kw-label" title="${kw.keyword}">${kw.keyword}</span>
             <div class="kw-bar-bg">
-                <div class="kw-bar-fill" style="width:0%; background:${color}" data-target="${pct}%"></div>
+                <div class="kw-bar-fill" style="width:0%;background:${color}" data-target="${pct}%"></div>
             </div>
-            <span class="kw-score">${(kw.score * 100).toFixed(2)}%</span>
-        `;
+            <span class="kw-score">${(kw.score * 100).toFixed(2)}%</span>`;
         chart.appendChild(row);
     });
 
-    // 바 애니메이션 (다음 프레임에서 너비 적용)
+    // 바 애니메이션
     requestAnimationFrame(() => {
         chart.querySelectorAll('.kw-bar-fill').forEach(bar => {
             bar.style.width = bar.dataset.target;
@@ -121,22 +127,38 @@ function renderKeywordChart(keywords) {
     });
 }
 
+function renderSummary(sentences) {
+    const list = document.getElementById('summary-list');
+    list.innerHTML = '';
+
+    if (!sentences || sentences.length === 0) {
+        list.innerHTML = '<p class="empty-msg">핵심 문장을 추출하지 못했습니다.</p>';
+        return;
+    }
+
+    sentences.forEach((sent, i) => {
+        const li = document.createElement('li');
+        li.className = 'summary-item';
+        li.innerHTML = `<span class="summary-num">${i + 1}</span><span>${sent}</span>`;
+        list.appendChild(li);
+    });
+}
+
 // ── 분석 이력 ──
 function addHistory(data, url) {
-    history.unshift({ data, url, time: new Date() });
-    totalCount.textContent = history.length;
+    analysisHistory.unshift({ data, url });
+    totalCount.textContent = analysisHistory.length;
     renderHistory();
 }
 
 function renderHistory() {
-    if (history.length === 0) {
+    if (analysisHistory.length === 0) {
         historyList.innerHTML = '<p class="empty-msg">아직 분석 이력이 없습니다.</p>';
         return;
     }
-
     historyList.innerHTML = '';
-    history.forEach((item, i) => {
-        const topKeywords = item.data.keywords.slice(0, 3).map(k => k.keyword).join(', ');
+    analysisHistory.forEach(item => {
+        const topKw = item.data.keywords.slice(0, 3).map(k => k.keyword).join(', ');
         const el = document.createElement('div');
         el.className = 'history-item';
         el.innerHTML = `
@@ -145,39 +167,29 @@ function renderHistory() {
             </div>
             <div class="history-info">
                 <div class="history-title">${item.data.title}</div>
-                <div class="history-kw">🔑 ${topKeywords}</div>
-            </div>
-        `;
+                <div class="history-kw">🔑 ${topKw}</div>
+            </div>`;
         el.addEventListener('click', () => renderResult(item.data, item.url));
         historyList.appendChild(el);
     });
 }
 
-// 전체 삭제
 document.getElementById('clear-btn').addEventListener('click', () => {
-    history = [];
+    analysisHistory = [];
     totalCount.textContent = 0;
     renderHistory();
     showPanel('empty');
 });
 
-// ── 패널 표시 제어 ──
+// ── 패널 / 버튼 상태 ──
+const panels = { empty: resultEmpty, loading: resultLoading, error: resultError, content: resultContent };
+
 function showPanel(name) {
-    resultEmpty.classList.add('hidden');
-    resultLoading.classList.add('hidden');
-    resultError.classList.add('hidden');
-    resultContent.classList.add('hidden');
-
-    if (name === 'empty')   resultEmpty.classList.remove('hidden');
-    if (name === 'loading') resultLoading.classList.remove('hidden');
-    if (name === 'error')   resultError.classList.remove('hidden');
-    if (name === 'content') resultContent.classList.remove('hidden');
+    Object.values(panels).forEach(p => p.classList.add('hidden'));
+    panels[name].classList.remove('hidden');
 }
 
-function showError(msg) {
-    errorMsg.textContent = msg;
-    showPanel('error');
-}
+function showError(msg) { errorMsg.textContent = msg; showPanel('error'); }
 
 function setLoading(on) {
     submitBtn.disabled = on;

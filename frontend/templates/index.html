@@ -8,129 +8,139 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="dashboard-container">
+<div class="dashboard-container">
 
-        <!-- 상단 네비게이션 -->
-        <header class="top-nav glass">
-            <div class="nav-logo">
-                <span class="logo-icon">▶</span>
-                <span class="logo-text">YouTube 키워드 분석기</span>
-            </div>
-            <nav class="nav-links">
-                <a href="#" class="active">분석</a>
-                <a href="#">이력</a>
-            </nav>
-            <div class="nav-badge">
-                <span id="total-count">0</span>건 분석 완료
-            </div>
-        </header>
+    <!-- 상단 네비게이션 -->
+    <header class="top-nav glass">
+        <div class="nav-logo">
+            <span class="logo-icon">▶</span>
+            <span class="logo-text">YouTube 키워드 분석기</span>
+        </div>
+        <nav class="nav-links">
+            <a href="#" class="active">분석</a>
+            <a href="#">이력</a>
+        </nav>
+        <div class="nav-badge"><span id="total-count">0</span>건 분석 완료</div>
+    </header>
 
-        <!-- 메인 2단 레이아웃 -->
-        <main class="main-content">
+    <!-- 메인 2단 레이아웃 -->
+    <main class="main-content">
 
-            <!-- 왼쪽: 입력 폼 + 분석 이력 -->
-            <section class="left-column">
+        <!-- ── 왼쪽: 입력 + 이력 ── -->
+        <section class="left-column">
 
-                <!-- URL 입력 폼 -->
-                <article class="glass-panel input-panel">
-                    <div class="panel-header">
-                        <h2>영상 분석</h2>
-                        <span class="panel-sub">YouTube URL을 입력하세요</span>
+            <article class="glass-panel input-panel">
+                <div class="panel-header">
+                    <h2>영상 분석</h2>
+                    <span class="panel-sub">YouTube URL 입력</span>
+                </div>
+                <form id="analyze-form">
+                    <div class="form-group">
+                        <label class="form-label">YouTube URL</label>
+                        <input type="url" id="url-input" class="form-input"
+                               placeholder="https://www.youtube.com/watch?v=..." required>
                     </div>
+                    <div class="form-group">
+                        <label class="form-label">키워드 수: <strong id="topn-display">10</strong>개</label>
+                        <input type="range" id="topn-input" min="5" max="30" value="10" class="range-input">
+                        <div class="range-labels"><span>5</span><span>30</span></div>
+                    </div>
+                    <button type="submit" id="submit-btn" class="submit-btn">
+                        <span id="btn-text">▶ 분석 시작</span>
+                    </button>
+                </form>
+            </article>
 
-                    <form id="analyze-form">
-                        <div class="form-group">
-                            <label class="form-label">YouTube URL</label>
-                            <input
-                                type="url"
-                                id="url-input"
-                                class="form-input glass"
-                                placeholder="https://www.youtube.com/watch?v=..."
-                                required
-                            >
+            <article class="glass-panel history-panel">
+                <div class="panel-header">
+                    <h2>분석 이력</h2>
+                    <button id="clear-btn" class="clear-btn">전체 삭제</button>
+                </div>
+                <div id="history-list" class="history-list">
+                    <p class="empty-msg">아직 분석 이력이 없습니다.</p>
+                </div>
+            </article>
+
+        </section>
+
+        <!-- ── 오른쪽: 결과 ── -->
+        <section class="right-column">
+            <article class="glass-panel result-panel" id="result-panel">
+
+                <!-- 초기 안내 -->
+                <div id="result-empty" class="state-box">
+                    <div class="state-icon">▶</div>
+                    <p>YouTube URL을 입력하고<br>분석 시작 버튼을 누르세요.</p>
+                </div>
+
+                <!-- 로딩 -->
+                <div id="result-loading" class="state-box hidden">
+                    <div class="spinner"></div>
+                    <p>자막 수집 및 분석 중...</p>
+                </div>
+
+                <!-- 에러 -->
+                <div id="result-error" class="state-box hidden">
+                    <div class="state-icon error">⚠</div>
+                    <p id="error-msg"></p>
+                </div>
+
+                <!-- 결과 본문 -->
+                <div id="result-content" class="hidden">
+
+                    <!-- 영상 헤더 -->
+                    <div class="result-header">
+                        <div class="video-thumb" id="video-thumb"></div>
+                        <div class="video-info">
+                            <h2 id="result-title"></h2>
+                            <a id="result-link" href="#" target="_blank" class="result-url"></a>
                         </div>
+                    </div>
 
-                        <div class="form-group">
-                            <label class="form-label">
-                                추출 키워드 수:
-                                <strong id="topn-display">10</strong>개
-                            </label>
-                            <input
-                                type="range"
-                                id="topn-input"
-                                min="5" max="30" value="10" step="1"
-                                class="range-input"
-                            >
-                            <div class="range-labels">
-                                <span>5</span><span>30</span>
-                            </div>
+                    <!-- 통계 카드 3개 -->
+                    <div class="stats-row">
+                        <div class="stat-card">
+                            <div class="stat-value" id="stat-words">-</div>
+                            <div class="stat-label">총 단어 수</div>
                         </div>
-
-                        <button type="submit" class="submit-btn" id="submit-btn">
-                            <span id="btn-text">▶ 분석 시작</span>
-                        </button>
-                    </form>
-                </article>
-
-                <!-- 분석 이력 -->
-                <article class="glass-panel history-panel">
-                    <div class="panel-header">
-                        <h2>분석 이력</h2>
-                        <button class="clear-btn" id="clear-btn">전체 삭제</button>
-                    </div>
-                    <div id="history-list" class="history-list">
-                        <p class="empty-msg">아직 분석 이력이 없습니다.</p>
-                    </div>
-                </article>
-
-            </section>
-
-            <!-- 오른쪽: 분석 결과 -->
-            <section class="right-column">
-                <article class="glass-panel result-panel" id="result-panel">
-
-                    <!-- 초기 안내 화면 -->
-                    <div id="result-empty" class="result-empty">
-                        <div class="empty-icon">▶</div>
-                        <p>YouTube URL을 입력하고<br>분석 시작 버튼을 누르세요.</p>
-                    </div>
-
-                    <!-- 로딩 -->
-                    <div id="result-loading" class="result-loading hidden">
-                        <div class="spinner"></div>
-                        <p>자막 수집 및 키워드 분석 중...</p>
-                    </div>
-
-                    <!-- 에러 -->
-                    <div id="result-error" class="result-error hidden">
-                        <div class="error-icon">⚠</div>
-                        <p id="error-msg"></p>
-                    </div>
-
-                    <!-- 결과 -->
-                    <div id="result-content" class="hidden">
-
-                        <div class="result-header">
-                            <div class="video-thumb" id="video-thumb"></div>
-                            <div class="video-info">
-                                <h2 id="result-title"></h2>
-                                <a id="result-link" href="#" target="_blank" class="result-url"></a>
-                            </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="stat-sentences">-</div>
+                            <div class="stat-label">문장 수</div>
                         </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="stat-readtime">-</div>
+                            <div class="stat-label">예상 읽기시간</div>
+                        </div>
+                    </div>
 
-                        <div class="section-title">핵심 키워드</div>
+                    <!-- 탭 전환 -->
+                    <div class="tab-bar">
+                        <button class="tab-btn active" data-tab="keywords">🔑 핵심 키워드</button>
+                        <button class="tab-btn" data-tab="summary">📋 핵심 요약</button>
+                        <button class="tab-btn" data-tab="transcript">📝 자막 원문</button>
+                    </div>
+
+                    <!-- 탭: 키워드 -->
+                    <div id="tab-keywords" class="tab-content">
                         <div id="keyword-chart" class="keyword-chart"></div>
-
-                        <div class="section-title">자막 미리보기</div>
-                        <div id="transcript-preview" class="transcript-box"></div>
-
                     </div>
-                </article>
-            </section>
 
-        </main>
-    </div>
+                    <!-- 탭: 핵심 요약 -->
+                    <div id="tab-summary" class="tab-content hidden">
+                        <ul id="summary-list" class="summary-list"></ul>
+                    </div>
 
-    <script src="/static/index.js"></script>
+                    <!-- 탭: 자막 원문 -->
+                    <div id="tab-transcript" class="tab-content hidden">
+                        <div id="transcript-preview" class="transcript-box"></div>
+                    </div>
+
+                </div>
+            </article>
+        </section>
+
+    </main>
+</div>
+<script src="/static/index.js"></script>
 </body>
 </html>
