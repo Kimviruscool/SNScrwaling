@@ -1,75 +1,185 @@
 // frontend/static/index.js
 
-document.addEventListener('DOMContentLoaded', () => {
-    // HTML에서 필요한 요소들을 찾아서 변수에 저장합니다.
-    const form = document.getElementById('generate-form');
-    const categorySelect = document.getElementById('category-select');
-    const urlInput = document.getElementById('url-input');
-    const submitBtn = document.querySelector('.submit-btn');
-    const reportsList = document.getElementById('reports-list');
+const form       = document.getElementById('analyze-form');
+const urlInput   = document.getElementById('url-input');
+const topnInput  = document.getElementById('topn-input');
+const topnDisplay = document.getElementById('topn-display');
+const submitBtn  = document.getElementById('submit-btn');
+const btnText    = document.getElementById('btn-text');
+const historyList = document.getElementById('history-list');
+const totalCount  = document.getElementById('total-count');
 
-    // 폼이 제출(버튼 클릭)될 때 실행될 함수
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault(); // 페이지가 새로고침되는 기본 동작을 막습니다.
+// 결과 패널 영역들
+const resultEmpty   = document.getElementById('result-empty');
+const resultLoading = document.getElementById('result-loading');
+const resultError   = document.getElementById('result-error');
+const resultContent = document.getElementById('result-content');
+const errorMsg      = document.getElementById('error-msg');
 
-        const category = categorySelect.value;
-        const url = urlInput.value;
+// 인메모리 이력 저장소
+let history = [];
 
-        // 1. 로딩 상태 UI로 변경
-        const originalBtnText = submitBtn.textContent;
-        submitBtn.textContent = 'Generating... ⏳';
-        submitBtn.disabled = true; // 중복 클릭 방지
-        submitBtn.style.opacity = '0.7';
-
-        try {
-            // 2. FastAPI 백엔드로 데이터 전송 (POST 요청)
-            const response = await fetch('/api/generate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ category: category, url: url })
-            });
-
-            const result = await response.json();
-
-            // 3. 백엔드에서 성공적으로 응답이 오면
-            if(result.success) {
-                // 새로운 카드 HTML을 만듭니다.
-                const newCard = document.createElement('div');
-                newCard.className = 'report-card glass'; // Glassmorphism 클래스 적용
-
-                // 태그 배열을 HTML 문자열로 변환
-                const tagsHtml = result.data.tags.map(tag => `<span class="tag">${tag}</span>`).join('');
-
-                newCard.innerHTML = `
-                    <div class="card-logo"></div>
-                    <div class="card-content">
-                        <p class="card-title">${result.data.title} <span class="monochrome-tag">Monochrome</span></p>
-                        <p class="card-url">${result.data.url}</p>
-                    </div>
-                    <div class="card-status Completed">${result.data.status}</div>
-                    <div class="card-meta">
-                        <p class="card-time">${result.data.time}</p>
-                        <div class="card-tags">${tagsHtml}</div>
-                    </div>
-                    <button class="expand-btn">⌄</button>
-                `;
-
-                // 리스트의 맨 위에 새 카드를 자연스럽게 추가합니다.
-                reportsList.prepend(newCard);
-
-                // 입력창 비우기
-                urlInput.value = '';
-            }
-        } catch (error) {
-            alert('서버와 통신하는 중 오류가 발생했습니다.');
-            console.error(error);
-        } finally {
-            // 4. 통신이 끝나면(성공/실패 무관) 버튼 상태를 원상복구합니다.
-            submitBtn.textContent = originalBtnText;
-            submitBtn.disabled = false;
-            submitBtn.style.opacity = '1';
-        }
-    });
+// ── 슬라이더 숫자 연동 ──
+topnInput.addEventListener('input', () => {
+    const v = topnInput.value;
+    topnDisplay.textContent = v;
+    // 슬라이더 채워진 비율 색상 업데이트
+    const pct = ((v - 5) / (30 - 5)) * 100;
+    topnInput.style.background =
+        `linear-gradient(to right, #e11d48 0%, #e11d48 ${pct}%, #e2e8f0 ${pct}%)`;
 });
+
+// ── 폼 제출 ──
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const url   = urlInput.value.trim();
+    const top_n = parseInt(topnInput.value, 10);
+
+    if (!url) return;
+
+    setLoading(true);
+    showPanel('loading');
+
+    try {
+        const res = await fetch('/api/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url, top_n }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            // FastAPI HTTPException → data.detail
+            throw new Error(data.detail || '분석에 실패했습니다.');
+        }
+
+        renderResult(data, url);
+        addHistory(data, url);
+        urlInput.value = '';
+
+    } catch (err) {
+        showError(err.message);
+    } finally {
+        setLoading(false);
+    }
+});
+
+// ── 결과 렌더링 ──
+function renderResult(data, url) {
+    // 썸네일
+    const thumb = document.getElementById('video-thumb');
+    thumb.innerHTML = `<img src="https://img.youtube.com/vi/${data.video_id}/mqdefault.jpg" alt="썸네일">`;
+
+    document.getElementById('result-title').textContent = data.title;
+
+    const link = document.getElementById('result-link');
+    link.href = url;
+    link.textContent = url.length > 50 ? url.slice(0, 50) + '...' : url;
+
+    // 키워드 바 차트
+    renderKeywordChart(data.keywords);
+
+    // 자막 미리보기
+    document.getElementById('transcript-preview').textContent = data.transcript_preview;
+
+    showPanel('content');
+}
+
+function renderKeywordChart(keywords) {
+    const chart = document.getElementById('keyword-chart');
+    chart.innerHTML = '';
+
+    const maxScore = keywords[0]?.score || 1;
+
+    keywords.forEach((kw, i) => {
+        const pct = ((kw.score / maxScore) * 100).toFixed(1);
+
+        // 색상: 상위 3개는 빨강, 나머지는 보라
+        const color = i < 3
+            ? 'linear-gradient(90deg, #e11d48, #f43f5e)'
+            : 'linear-gradient(90deg, #a78bfa, #818cf8)';
+
+        const row = document.createElement('div');
+        row.className = 'kw-row';
+        row.innerHTML = `
+            <span class="kw-label" title="${kw.keyword}">${kw.keyword}</span>
+            <div class="kw-bar-bg">
+                <div class="kw-bar-fill" style="width:0%; background:${color}" data-target="${pct}%"></div>
+            </div>
+            <span class="kw-score">${(kw.score * 100).toFixed(2)}%</span>
+        `;
+        chart.appendChild(row);
+    });
+
+    // 바 애니메이션 (다음 프레임에서 너비 적용)
+    requestAnimationFrame(() => {
+        chart.querySelectorAll('.kw-bar-fill').forEach(bar => {
+            bar.style.width = bar.dataset.target;
+        });
+    });
+}
+
+// ── 분석 이력 ──
+function addHistory(data, url) {
+    history.unshift({ data, url, time: new Date() });
+    totalCount.textContent = history.length;
+    renderHistory();
+}
+
+function renderHistory() {
+    if (history.length === 0) {
+        historyList.innerHTML = '<p class="empty-msg">아직 분석 이력이 없습니다.</p>';
+        return;
+    }
+
+    historyList.innerHTML = '';
+    history.forEach((item, i) => {
+        const topKeywords = item.data.keywords.slice(0, 3).map(k => k.keyword).join(', ');
+        const el = document.createElement('div');
+        el.className = 'history-item';
+        el.innerHTML = `
+            <div class="history-thumb">
+                <img src="https://img.youtube.com/vi/${item.data.video_id}/mqdefault.jpg" alt="">
+            </div>
+            <div class="history-info">
+                <div class="history-title">${item.data.title}</div>
+                <div class="history-kw">🔑 ${topKeywords}</div>
+            </div>
+        `;
+        el.addEventListener('click', () => renderResult(item.data, item.url));
+        historyList.appendChild(el);
+    });
+}
+
+// 전체 삭제
+document.getElementById('clear-btn').addEventListener('click', () => {
+    history = [];
+    totalCount.textContent = 0;
+    renderHistory();
+    showPanel('empty');
+});
+
+// ── 패널 표시 제어 ──
+function showPanel(name) {
+    resultEmpty.classList.add('hidden');
+    resultLoading.classList.add('hidden');
+    resultError.classList.add('hidden');
+    resultContent.classList.add('hidden');
+
+    if (name === 'empty')   resultEmpty.classList.remove('hidden');
+    if (name === 'loading') resultLoading.classList.remove('hidden');
+    if (name === 'error')   resultError.classList.remove('hidden');
+    if (name === 'content') resultContent.classList.remove('hidden');
+}
+
+function showError(msg) {
+    errorMsg.textContent = msg;
+    showPanel('error');
+}
+
+function setLoading(on) {
+    submitBtn.disabled = on;
+    btnText.textContent = on ? '분석 중... ⏳' : '▶ 분석 시작';
+}
